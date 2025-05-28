@@ -10,6 +10,7 @@ const UserSchema = new Schema({
     enum: ['JobSeeker', 'Employer'],
     default: 'JobSeeker'
   },
+  companyId: { type: Schema.Types.ObjectId, ref: 'Company' } // ✅ New field
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

@@ -15,6 +15,11 @@ import MyApplications from '../pages/MyApplications';
 import ProfilePage from '../pages/ProfilePage';
 import EditProfilePage from '../pages/EditProfilePage';
 import SavedJobsPage from '../pages/SavedJobsPage';
+import MySurveys from '../pages/Mysurveys';
+import SurveyResponses from '../pages/SurveyRespones';
+import EmployerDashboard from '../pages/Dashboardpage';
+import CreateSurvey from '../pages/CreateSurvey';
+import TakeSurveyPage from '../pages/TakeSurveyPage';
 
 const AppRoutes = () => {
   return (
@@ -34,7 +39,11 @@ const AppRoutes = () => {
         <Route element={<Layout />}>
         <Route path="/applications/job/:id" element ={<Applicants/>} />
         <Route path="/saved-jobs" element={<SavedJobsPage />} />
-       
+       <Route path="/surveys/create" element={<CreateSurvey />} />
+      <Route path="/surveys/my" element={<MySurveys />} />
+      <Route path="/surveys/:surveyId/responses" element={<SurveyResponses />} />
+      <Route path="/employer/dashboard" element={<EmployerDashboard />} />
+      <Route path="/surveys/respond/:id" element={<TakeSurveyPage/>} />
             <Route path="/post-job" element={<PostJobPage />} />
             <Route path="/my-jobs" element={<MyJobsPage />} />
             <Route path="/profile/me" element={<ProfilePage />} />

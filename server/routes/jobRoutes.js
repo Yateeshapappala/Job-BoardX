@@ -6,7 +6,8 @@ const {
   getMyJobs, 
   getJobById, 
   updateJob, 
-  deleteJob 
+  deleteJob,
+  previewOptimizedDescription,
 } = require('../controllers/jobController');
 
 const router = express.Router();
@@ -17,5 +18,5 @@ router.get('/', getJobs);                        // Get all jobs (Public)
 router.get('/:id', getJobById);                  // Get single job (Public)
 router.put('/:id', protect, updateJob);          // Update job (Employer only)
 router.delete('/:id', protect, deleteJob);       // Delete job (Employer only)
-
+router.post('/openai/preview-job-description',protect,previewOptimizedDescription)
 module.exports = router;

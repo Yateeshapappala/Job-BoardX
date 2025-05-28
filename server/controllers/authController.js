@@ -2,12 +2,13 @@ const User = require('../models/User');
 const Profile = require('../models/Profile'); // make sure you have this model
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const Company = require('../models/Company');
 
 exports.register = async (req, res) => {
   try {
     console.log('📥 Request body:', req.body);
 
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, companyName } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -15,15 +16,30 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
+    let company = null;
+
+    if (role === 'Employer') {
+      if (!companyName) {
+        return res.status(400).json({ message: 'Company name is required for employers' });
+      }
+
+      company = await Company.findOne({ name: companyName });
+      if (!company) {
+        company = await Company.create({ name: companyName });
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
       role,
+      companyId: company ? company._id : undefined
     });
 
-    // Create a profile for the user (if applicable)
+    // Optional: Create profile
     try {
       await Profile.create({ user: user._id });
     } catch (profileErr) {
@@ -37,7 +53,12 @@ exports.register = async (req, res) => {
     );
 
     return res.status(201).json({
-      user: { id: user._id, name: user.name, role: user.role },
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        company: company ? company.name : null
+      },
       token,
     });
   } catch (err) {
@@ -45,6 +66,7 @@ exports.register = async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
