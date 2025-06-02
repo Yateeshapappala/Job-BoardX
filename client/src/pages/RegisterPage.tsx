@@ -3,7 +3,16 @@ import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import axios from '../services/axiosInstance';
 import { useNavigate } from 'react-router-dom';
-import {Box,Button,TextField,MenuItem,Typography,Paper,useMediaQuery,useTheme} from '@mui/material';
+import {
+  Box,
+  Button,
+  TextField,
+  MenuItem,
+  Typography,
+  Paper,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -15,20 +24,26 @@ const RegisterPage = () => {
     email: '',
     password: '',
     role: 'JobSeeker',
+    companyName: '', // Added this field here
   };
 
   const validationSchema = Yup.object({
-    name: Yup.string().required('Name is required'),
-    email: Yup.string().email('Invalid email').required('Email is required'),
-    password: Yup.string()
-      .min(8, 'At least 8 characters')
-      .matches(/[a-z]/, 'Include a lowercase letter')
-      .matches(/[A-Z]/, 'Include an uppercase letter')
-      .matches(/\d/, 'Include a number')
-      .matches(/[!@#$%^&*]/, 'Include a special character')
-      .required('Password is required'),
-    role: Yup.string().oneOf(['JobSeeker', 'Employer'], 'Select a valid role').required(),
-  });
+  name: Yup.string().required('Name is required'),
+  email: Yup.string().email('Invalid email').required('Email is required'),
+  password: Yup.string()
+    .min(8, 'At least 8 characters')
+    .matches(/[a-z]/, 'Include a lowercase letter')
+    .matches(/[A-Z]/, 'Include an uppercase letter')
+    .matches(/\d/, 'Include a number')
+    .matches(/[!@#$%^&*]/, 'Include a special character')
+    .required('Password is required'),
+  role: Yup.string().oneOf(['JobSeeker', 'Employer']).required(),
+  companyName: Yup.string().when(['role'], ([role], schema) =>
+    role === 'Employer' ? schema.required('Company name is required') : schema.notRequired()
+  ),
+});
+
+
 
   const onSubmit = async (values: typeof initialValues) => {
     try {
@@ -56,8 +71,8 @@ const RegisterPage = () => {
           Welcome to JobBoardX
         </Typography>
         <Typography variant="h6" maxWidth="80%" textAlign="center" lineHeight={1.6}>
-                     Connect with top companies, find your dream job, or hire the best talent in the market.
-                              </Typography>
+          Connect with top companies, find your dream job, or hire the best talent in the market.
+        </Typography>
       </Box>
 
       <Box
@@ -113,7 +128,7 @@ const RegisterPage = () => {
                   />
                 </Box>
 
-                <Box mb={3}>
+                <Box mb={2}>
                   <TextField
                     fullWidth
                     select
@@ -128,6 +143,21 @@ const RegisterPage = () => {
                     <MenuItem value="Employer">Employer</MenuItem>
                   </TextField>
                 </Box>
+
+                {/* Conditionally show companyName only if role is Employer */}
+                {values.role === 'Employer' && (
+                  <Box mb={3}>
+                    <TextField
+                      fullWidth
+                      label="Company Name"
+                      name="companyName"
+                      value={values.companyName}
+                      onChange={handleChange}
+                      error={touched.companyName && Boolean(errors.companyName)}
+                      helperText={touched.companyName && errors.companyName}
+                    />
+                  </Box>
+                )}
 
                 <Button type="submit" fullWidth variant="contained" sx={{ bgcolor: '#2563eb' }}>
                   Sign Up

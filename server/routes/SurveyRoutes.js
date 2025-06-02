@@ -8,7 +8,7 @@ const {
   getSurveyById,
   deleteSurvey,
   checkIfSubmitted
-} = require('../controllers/surveyController');
+} = require('../controllers/SurveyController');
 
 const { protect, restrictTo } = require('../middlewares/authMiddleware');
 
