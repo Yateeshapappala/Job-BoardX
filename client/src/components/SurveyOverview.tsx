@@ -25,27 +25,8 @@ const SurveyOverview: React.FC<Props> = ({
         alignItems="center"
         mb={2}
       >
-        <Typography variant="h6" fontWeight={600}>
-          Survey Overview
-        </Typography>
-        <Button
-          variant="contained"
-          size="small"
-          onClick={() => navigate('/surveys/create')}
-          sx={{ whiteSpace: 'nowrap' }}
-        >
-          Create Survey
-        </Button>
       </Stack>
 
-      <Typography
-        variant="body2"
-        color="text.secondary"
-        mb={3}
-        maxWidth={360}
-      >
-        Quick glance at all your surveys.
-      </Typography>
 
       <Stack spacing={2}>
         {surveys.map((survey, i) => (

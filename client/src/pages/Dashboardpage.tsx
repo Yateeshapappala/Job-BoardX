@@ -140,14 +140,7 @@ const EmployerDashboard: React.FC = () => {
       <Box p={{ xs: 3, md: 5 }}>
         {/* Header */}
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4} flexWrap="wrap" gap={2}>
-          <Box>
-            <Typography variant="h3" fontWeight={700} gutterBottom>
-              Employer Dashboard
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Monitor your surveys, analyze results, and manage job postings all in one place.
-            </Typography>
-          </Box>
+          
           <Button
             variant="outlined"
             color="primary"
