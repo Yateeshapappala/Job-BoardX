@@ -1,107 +1,101 @@
 const Application = require('../models/Application');
 const Job = require('../models/job');
+const mongoose = require('mongoose');
 
+const sendError = (res, status, message, error = null) => {
+  const response = { message };
+  if (error) response.error = error;
+  return res.status(status).json(response);
+};
 
-const multer = require('multer');
-const path = require('path');
-
-// Configure storage
-const storage = multer.diskStorage({
-  destination: 'uploads/',
-  filename: (req, file, cb) => {
-    cb(null, `resume-${Date.now()}${path.extname(file.originalname)}`);
-  },
-});
-
-exports.upload = multer({
-  storage,
-  fileFilter(req, file, cb) {
-    if (!file.originalname.match(/\.(pdf)$/)) {
-      return cb(new Error('Only PDF files are allowed'));
-    }
-    cb(null, true);
-  },
-});
-
-
-// Apply to a job
 exports.applyJob = async (req, res) => {
   const { resumeLink, coverLetter, jobId } = req.body;
 
   if (!resumeLink || !coverLetter || !jobId) {
-    return res.status(400).json({ message: 'All fields are required.' });
+    return sendError(res, 400, 'All fields are required.');
   }
-  console.log('Applying with:', { resumeLink, coverLetter, jobId, user: req.user._id });
 
-  // Proceed to save the application to MongoDB...
+  if (!mongoose.Types.ObjectId.isValid(jobId)) {
+    return sendError(res, 400, 'Invalid job ID');
+  }
+
   try {
+    const existingApplication = await Application.findOne({ applicant: req.user._id, job: jobId });
+    if (existingApplication) {
+      return sendError(res, 400, 'You have already applied for this job.');
+    }
+
     const newApplication = new Application({
       applicant: req.user._id,
       job: jobId,
-      resumeLink: resumeLink,
+      resumeLink,
       coverLetter,
     });
 
     await newApplication.save();
-    res.status(201).json({ message: 'Application submitted successfully' });
+    res.status(201).json({ message: 'Application submitted successfully', application: newApplication });
   } catch (error) {
     console.error('Apply Job Error:', error);
-    res.status(500).json({ message: 'Server error' });
+    return sendError(res, 500, 'Server error', error.message);
   }
 };
-
 
 exports.getMyApplications = async (req, res) => {
   try {
     const applications = await Application.find({ applicant: req.user._id })
-      .populate('job', 'title company location');
-      
+      .populate('job', 'title company location createdBy');
     res.status(200).json(applications);
   } catch (error) {
     console.error('Error in getMyApplications:', error);
-    res.status(500).json({ message: 'Failed to fetch applications', error: error.message });
+    return sendError(res, 500, 'Failed to fetch applications', error.message);
   }
 };
 
-
-// Get applicants for a specific job (Employer)
 exports.getApplicantsForJob = async (req, res) => {
+  const jobId = req.params.id;
+  if (!mongoose.Types.ObjectId.isValid(jobId)) {
+    return sendError(res, 400, 'Invalid job ID');
+  }
+
   try {
-    const job = await Job.findById(req.params.id);
-    if (!job) return res.status(404).json({ message: 'Job not found' });
+    const job = await Job.findById(jobId);
+    if (!job) return sendError(res, 404, 'Job not found');
 
     if (job.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: 'Not authorized' });
+      return sendError(res, 401, 'Not authorized');
     }
 
-    const applicants = await Application.find({ job: req.params.id })
-      .populate('applicant', 'name email'); // Include name/email from User
-
+    const applicants = await Application.find({ job: jobId })
+      .populate('applicant', 'name email');
     res.status(200).json(applicants);
   } catch (err) {
     console.error('Error fetching applicants:', err);
-    res.status(500).json({ message: 'Server error' });
+    return sendError(res, 500, 'Server error', err.message);
   }
 };
 
-
 exports.updateApplicationStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
+  const { id } = req.params;
+  const { status } = req.body;
 
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return sendError(res, 400, 'Invalid application ID');
+  }
+
+  const allowedStatuses = ['Pending', 'Accepted', 'Rejected'];
+  if (!allowedStatuses.includes(status)) {
+    return sendError(res, 400, 'Invalid status value');
+  }
+
+  try {
     const application = await Application.findById(id);
-    if (!application) {
-      return res.status(404).json({ message: 'Application not found' });
-    }
+    if (!application) return sendError(res, 404, 'Application not found');
 
     const job = await Job.findById(application.job);
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
-    }
+    if (!job) return sendError(res, 404, 'Job not found');
 
     if (job.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: 'Not authorized' });
+      return sendError(res, 401, 'Not authorized');
     }
 
     application.status = status;
@@ -110,30 +104,29 @@ exports.updateApplicationStatus = async (req, res) => {
     res.status(200).json({ message: 'Application status updated successfully', application });
   } catch (error) {
     console.error('Error updating status:', error);
-    res.status(500).json({ message: 'Server error' });
+    return sendError(res, 500, 'Server error', error.message);
   }
 };
 
-
-// Delete an application
 exports.deleteApplication = async (req, res) => {
-  try {
-    const application = await Application.findById(req.params.id);
-    if (!application) {
-      return res.status(404).json({ message: 'Application not found' });
-    }
+  const applicationId = req.params.id;
 
-    // Ensure the user deleting it is the applicant
+  if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+    return sendError(res, 400, 'Invalid application ID');
+  }
+
+  try {
+    const application = await Application.findById(applicationId);
+    if (!application) return sendError(res, 404, 'Application not found');
+
     if (application.applicant.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Unauthorized' });
+      return sendError(res, 403, 'Unauthorized');
     }
 
     await application.deleteOne();
     res.status(200).json({ message: 'Application deleted successfully' });
   } catch (error) {
     console.error('Error deleting application:', error);
-    res.status(500).json({ message: 'Server error' });
+    return sendError(res, 500, 'Server error', error.message);
   }
 };
-
-

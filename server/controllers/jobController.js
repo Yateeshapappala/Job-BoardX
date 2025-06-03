@@ -1,10 +1,10 @@
 const Job = require('../models/job');
 const Survey = require('../models/Survey');
 const { enhanceDescription } = require('../utils/GeminiClient');
+const mongoose = require('mongoose');
 
 async function improveJobDescription(job, topicSentiments) {
   try {
-    // Compose a detailed prompt with multiple topics
     const topicsSummary = Object.entries(topicSentiments)
       .map(([topic, sentiment]) => `${topic}: "${sentiment || 'Not much data available'}"`)
       .join('\n');
@@ -34,49 +34,39 @@ async function optimizeJobPost(job) {
   const surveys = await Survey.find({ employer: job.createdBy }).lean();
   if (!surveys.length) return job;
 
-  // Get questions from surveys (assuming they have the same set)
   const questions = surveys[0]?.questions || [];
 
-  // Find question indexes for relevant topics (case insensitive)
   const topicKeywords = ['growth', 'mentorship', 'work-life balance', 'culture', 'salary'];
   const topicIndexes = {};
   for (const topic of topicKeywords) {
-    const index = questions.findIndex(q =>
-      q.label.toLowerCase().includes(topic)
-    );
+    const index = questions.findIndex(q => q.label.toLowerCase().includes(topic));
     if (index !== -1) topicIndexes[topic] = index;
   }
 
-  // Helper: get average rating or sentiment summary for each topic
   const topicSentiments = {};
   let lowBenefitFlag = false;
 
   for (const [topic, idx] of Object.entries(topicIndexes)) {
-    // Gather average rating for this question index across surveys
     const ratings = surveys.map(s => {
       if (!s.analytics || !s.analytics.averageRatings) return null;
       const ratingObj = s.analytics.averageRatings.find(r => r.questionIndex === idx);
       return ratingObj?.avg || null;
     }).filter(r => r !== null);
 
-    // Calculate average rating across surveys
-    const avgRating = ratings.length ? (ratings.reduce((a,b) => a+b, 0) / ratings.length) : null;
+    const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length) : null;
 
-    // Also check overall sentiment from surveys mentioning the topic in answers
     const textAnswers = surveys.flatMap(s => {
       if (!s.analytics || !s.analytics.textAnswers) return [];
       const answersObj = s.analytics.textAnswers.find(t => t.questionIndex === idx);
       return answersObj?.answers || [];
     });
 
-    // Simplistic sentiment estimate: if many negative words present, flag as negative
     const negativeWords = ['poor', 'low', 'bad', 'none', 'lack', 'insufficient'];
     const negativeCount = textAnswers.reduce((count, answer) => {
       const lower = answer.toLowerCase();
-      return count + negativeWords.some(w => lower.includes(w) ? 1 : 0);
+      return count + (negativeWords.some(w => lower.includes(w)) ? 1 : 0);
     }, 0);
 
-    // Decide sentiment
     if (avgRating !== null && avgRating < 3) {
       topicSentiments[topic] = 'negative';
       lowBenefitFlag = true;
@@ -88,7 +78,6 @@ async function optimizeJobPost(job) {
     }
   }
 
-  // Add benefits based on detected issues
   if (lowBenefitFlag) {
     if (!job.jobBenefits.includes('mentorship program')) {
       job.jobBenefits.push('mentorship program');
@@ -98,30 +87,23 @@ async function optimizeJobPost(job) {
     }
   }
 
-  // Run description improvement with multiple topic sentiments
   job.optimizedDescription = await improveJobDescription(job, topicSentiments);
 
   await job.save();
   return job;
 }
-// New preview function for AI-enhanced description, uses live data + survey sentiment but no DB write
+
 exports.previewOptimizedDescription = async (req, res) => {
   try {
     const employerId = req.user._id;
-    const {
-      title,
-      description,
-      industry,
-    } = req.body;
+    const { title, description, industry } = req.body;
 
     if (!title || !description || !industry) {
       return res.status(400).json({ message: 'title, description, and industry are required' });
     }
 
-    // Fetch surveys for this employer
     const surveys = await Survey.find({ employer: employerId }).lean();
 
-    // If no surveys, fallback to simple enhancement
     if (!surveys.length) {
       const simplePrompt = `
       Here's a job description for the role of "${title}" in the "${industry}" industry:
@@ -135,14 +117,11 @@ exports.previewOptimizedDescription = async (req, res) => {
       return res.status(200).json({ optimizedDescription: enhancedDesc });
     }
 
-    // Analyze topics same as in optimizeJobPost
     const questions = surveys[0]?.questions || [];
     const topicKeywords = ['growth', 'mentorship', 'work-life balance', 'culture', 'salary'];
     const topicIndexes = {};
     for (const topic of topicKeywords) {
-      const index = questions.findIndex(q =>
-        q.label.toLowerCase().includes(topic)
-      );
+      const index = questions.findIndex(q => q.label.toLowerCase().includes(topic));
       if (index !== -1) topicIndexes[topic] = index;
     }
 
@@ -154,7 +133,7 @@ exports.previewOptimizedDescription = async (req, res) => {
         return ratingObj?.avg || null;
       }).filter(r => r !== null);
 
-      const avgRating = ratings.length ? (ratings.reduce((a,b) => a+b, 0) / ratings.length) : null;
+      const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length) : null;
 
       const textAnswers = surveys.flatMap(s => {
         if (!s.analytics || !s.analytics.textAnswers) return [];
@@ -165,7 +144,7 @@ exports.previewOptimizedDescription = async (req, res) => {
       const negativeWords = ['poor', 'low', 'bad', 'none', 'lack', 'insufficient'];
       const negativeCount = textAnswers.reduce((count, answer) => {
         const lower = answer.toLowerCase();
-        return count + negativeWords.some(w => lower.includes(w) ? 1 : 0);
+        return count + (negativeWords.some(w => lower.includes(w)) ? 1 : 0);
       }, 0);
 
       if (avgRating !== null && avgRating < 3) {
@@ -177,7 +156,6 @@ exports.previewOptimizedDescription = async (req, res) => {
       }
     }
 
-    // Call improveJobDescription with topic sentiments
     const tempJob = { title, description, industry };
     const optimizedDescription = await improveJobDescription(tempJob, topicSentiments);
 
@@ -187,8 +165,6 @@ exports.previewOptimizedDescription = async (req, res) => {
     res.status(500).json({ message: 'Failed to preview optimized job description', error: error.message });
   }
 };
-
-// Keep all other existing exports (createJob, getJobs, updateJob, etc.)
 
 exports.createJob = async (req, res) => {
   try {
@@ -226,10 +202,9 @@ exports.createJob = async (req, res) => {
       numberOfOpenings,
       status,
       oneClickApply,
-      createdBy: req.user._id
+      createdBy: req.user._id,
     });
 
-    // Run optimizer after creation
     await optimizeJobPost(job);
 
     res.status(201).json(job);
@@ -239,8 +214,6 @@ exports.createJob = async (req, res) => {
   }
 };
 
-
-// Get all jobs
 exports.getJobs = async (req, res) => {
   try {
     const jobs = await Job.find().sort({ createdAt: -1 });
@@ -250,26 +223,23 @@ exports.getJobs = async (req, res) => {
   }
 };
 
-// Get a single job
 exports.getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
-    }
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
     const responseJob = job.toObject();
     if (job.optimizedDescription) {
       responseJob.originalDescription = job.description;
       responseJob.description = job.optimizedDescription;
     }
+
     res.status(200).json(responseJob);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch job', error: error.message });
   }
 };
 
-
-// Get jobs posted by the logged-in employer
 exports.getMyJobs = async (req, res) => {
   try {
     const jobs = await Job.find({ createdBy: req.user._id }).sort({ createdAt: -1 });
@@ -279,25 +249,19 @@ exports.getMyJobs = async (req, res) => {
   }
 };
 
-// Update a job
 exports.updateJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
-
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
-    }
+    if (!job) return res.status(404).json({ message: 'Job not found' });
 
     if (job.createdBy.toString() !== req.user._id.toString()) {
       return res.status(401).json({ message: 'Not authorized' });
     }
 
-    // Update fields
     Object.assign(job, req.body);
 
     await job.save();
 
-    // Run optimizer on update
     await optimizeJobPost(job);
 
     res.status(200).json(job);
@@ -306,7 +270,6 @@ exports.updateJob = async (req, res) => {
   }
 };
 
-// One-click apply (stub, actual logic depends on application flow)
 exports.oneClickApply = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -316,8 +279,6 @@ exports.oneClickApply = async (req, res) => {
       return res.status(400).json({ message: 'One-click apply not enabled for this job.' });
     }
 
-    // Here you would implement actual application logic, e.g., auto-fill user data, send application email, etc.
-    // For now, just simulate success
     res.status(200).json({ message: 'Application submitted via One-Click Apply!' });
   } catch (err) {
     console.error('One-Click Apply error:', err);
@@ -325,14 +286,10 @@ exports.oneClickApply = async (req, res) => {
   }
 };
 
-// Delete a job
 exports.deleteJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
-
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
-    }
+    if (!job) return res.status(404).json({ message: 'Job not found' });
 
     if (job.createdBy.toString() !== req.user._id.toString()) {
       return res.status(401).json({ message: 'Not authorized' });
@@ -345,16 +302,10 @@ exports.deleteJob = async (req, res) => {
   }
 };
 
-
-
-// in jobController.js
 exports.optimizeJobManually = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
-
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
-    }
+    if (!job) return res.status(404).json({ message: 'Job not found' });
 
     if (job.createdBy.toString() !== req.user._id.toString()) {
       return res.status(401).json({ message: 'Not authorized' });

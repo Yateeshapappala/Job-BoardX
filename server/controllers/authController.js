@@ -1,31 +1,52 @@
 const User = require('../models/User');
-const Profile = require('../models/Profile'); // make sure you have this model
+const Profile = require('../models/Profile');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Company = require('../models/Company');
 
+const generateToken = (user, companyName = null) => {
+  return jwt.sign(
+    {
+      id: user._id,
+      role: user.role,
+      name: user.name,
+      companyName,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '1d' }
+  );
+};
+
+const sendErrorResponse = (res, statusCode, message) =>
+  res.status(statusCode).json({ success: false, message });
+
 exports.register = async (req, res) => {
   try {
-    console.log('📥 Request body:', req.body);
-
     const { name, email, password, role, companyName } = req.body;
 
-    const existingUser = await User.findOne({ email });
+    const normalizedEmail = email.toLowerCase();
+
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
-      console.log('⚠️ User already exists');
-      return res.status(400).json({ message: 'Email already exists' });
+      return sendErrorResponse(res, 400, 'Email already exists');
+    }
+
+    const allowedRoles = ['Employer', 'Candidate'];
+    if (!allowedRoles.includes(role)) {
+      return sendErrorResponse(res, 400, 'Invalid role specified');
     }
 
     let company = null;
-
     if (role === 'Employer') {
       if (!companyName) {
-        return res.status(400).json({ message: 'Company name is required for employers' });
+        return sendErrorResponse(res, 400, 'Company name is required for employers');
       }
 
-      company = await Company.findOne({ name: companyName });
+      const normalizedCompanyName = companyName.trim();
+
+      company = await Company.findOne({ name: normalizedCompanyName });
       if (!company) {
-        company = await Company.create({ name: companyName });
+        company = await Company.create({ name: normalizedCompanyName });
       }
     }
 
@@ -33,64 +54,61 @@ exports.register = async (req, res) => {
 
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       role,
-      companyId: company ? company._id : undefined
+      companyId: company ? company._id : undefined,
     });
 
-    // Optional: Create profile
     try {
       await Profile.create({ user: user._id });
     } catch (profileErr) {
       console.error('❌ Error creating profile:', profileErr);
     }
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role, name: user.name },
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' }
-    );
+    const token = generateToken(user, company ? company.name : null);
 
     return res.status(201).json({
+      success: true,
       user: {
         id: user._id,
         name: user.name,
         role: user.role,
-        company: company ? company.name : null
+        company: company ? company.name : null,
       },
       token,
     });
   } catch (err) {
     console.error('❌ Error in register:', err);
-    return res.status(500).json({ message: 'Server error' });
+    return sendErrorResponse(res, 500, 'Server error');
   }
 };
 
-
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
   try {
-    const user = await User.findOne({ email });
-    if (!user)
-      return res.status(404).json({ message: 'User not found' });
+    const { email, password } = req.body;
+    const normalizedEmail = email.toLowerCase();
+
+    const user = await User.findOne({ email: normalizedEmail }).populate('companyId');
+    if (!user) {
+      return sendErrorResponse(res, 404, 'User not found');
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: 'Invalid credentials' });
+    if (!isMatch) {
+      return sendErrorResponse(res, 400, 'Invalid credentials');
+    }
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role, name: user.name },
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' }
-    );
+    const token = generateToken(user, user.companyId?.name || null);
 
     return res.status(200).json({
-      user: { id: user._id, name: user.name, role: user.role },
+      success: true,
+      user: { id: user._id, name: user.name, role: user.role, company: user.companyId?.name || null },
       token,
+      message: 'Login successful',
     });
   } catch (err) {
     console.error('❌ Error in login:', err);
-    return res.status(500).json({ message: 'Server error' });
+    return sendErrorResponse(res, 500, 'Server error');
   }
 };
