@@ -4,6 +4,7 @@ import { decodeToken } from '../utils/decodeToken';
 interface User {
   role: string;
   name: string;
+  companyName?: string;
 }
 
 export const useAuth = (): User | null => {
@@ -16,7 +17,7 @@ export const useAuth = (): User | null => {
         try {
           const decoded = decodeToken(token);
           if (decoded?.role && decoded?.name) {
-            setUser({ role: decoded.role, name: decoded.name });
+            setUser({ role: decoded.role, name: decoded.name, companyName: decoded.companyName });
           } else {
             setUser(null);
           }

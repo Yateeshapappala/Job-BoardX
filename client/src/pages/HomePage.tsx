@@ -91,6 +91,7 @@ const HomePage = () => {
       <HeroSection
         userName={user.name}
         greeting={greeting}
+        companyName={user.companyName}
         date={today}
         onCTA={() => navigate('/jobs')}
       />

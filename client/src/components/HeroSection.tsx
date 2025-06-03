@@ -6,9 +6,10 @@ interface HeroSectionProps {
   greeting: string;
   date: string;
   onCTA: () => void;
+  companyName?: string;
 }
 
-const HeroSection: React.FC<HeroSectionProps> = ({ userName, greeting, date, onCTA }) => {
+const HeroSection: React.FC<HeroSectionProps> = ({ userName, greeting, date, onCTA, companyName }) => {
   return (
     <Box
       sx={{
@@ -30,6 +31,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({ userName, greeting, date, onC
       <Typography variant="subtitle1" mb={3}>
         {userName ? date : 'Join thousands of job seekers and employers'}
       </Typography>
+      {companyName && (
+  <Typography variant="subtitle1" mb={1}>
+    {companyName}
+  </Typography>
+      )}
       <Button
         variant="contained"
         onClick={onCTA}

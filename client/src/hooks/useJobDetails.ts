@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '../services/axiosInstance';
 
 export const useJobDetails = (jobId: string | undefined) => {
   const [job, setJob] = useState<any>(null);
@@ -14,12 +14,12 @@ export const useJobDetails = (jobId: string | undefined) => {
         const token = localStorage.getItem('token');
 
         // Fetch job details first
-        const jobResponse = await axios.get(`http://localhost:5000/api/jobs/${jobId}`);
+        const jobResponse = await axios.get(`/api/jobs/${jobId}`);
         setJob(jobResponse.data);
 
         // Then check if the user has applied
         if (token) {
-          const appResponse = await axios.get('http://localhost:5000/api/applications/me', {
+          const appResponse = await axios.get('/api/applications/me', {
             headers: {
               Authorization: `Bearer ${token}`,
             },

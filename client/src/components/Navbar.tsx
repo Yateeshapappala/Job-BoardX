@@ -53,11 +53,12 @@ const Navbar = () => {
     }
     if (role === 'Employer') {
       return [
-          { label: 'Dashboard Home', to: '/employer/dashboard' },
+          { label: 'HR-Analytics', to: '/employer/dashboard' },
     { label: 'My Surveys', to: '/surveys/my' },
     {label: 'Create Survey', to: '/surveys/create'},
     { label: 'Post Job', to: '/post-job' },
     { label: 'My Jobs', to: '/my-jobs' },
+    {label: 'Interview Scheduler', to: '/employer/interview-scheduler'}
       ];
     }
     return [];
