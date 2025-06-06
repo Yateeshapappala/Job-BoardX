@@ -58,7 +58,7 @@ const Navbar = () => {
     {label: 'Create Survey', to: '/surveys/create'},
     { label: 'Post Job', to: '/post-job' },
     { label: 'My Jobs', to: '/my-jobs' },
-    {label: 'Interview Scheduler', to: '/employer/interview-scheduler'}
+    {label: 'Manage Interviewers', to: '/employer/interview-scheduler'}
       ];
     }
     return [];

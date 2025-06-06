@@ -31,7 +31,7 @@ exports.register = async (req, res) => {
       return sendErrorResponse(res, 400, 'Email already exists');
     }
 
-    const allowedRoles = ['Employer', 'Candidate'];
+    const allowedRoles = ['Employer', 'JobSeeker'];
     if (!allowedRoles.includes(role)) {
       return sendErrorResponse(res, 400, 'Invalid role specified');
     }

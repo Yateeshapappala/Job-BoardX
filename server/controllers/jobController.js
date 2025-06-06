@@ -2,7 +2,7 @@ const Job = require('../models/job');
 const Survey = require('../models/Survey');
 const { enhanceDescription } = require('../utils/GeminiClient');
 const mongoose = require('mongoose');
-
+const Company = require('../models/Company')
 async function improveJobDescription(job, topicSentiments) {
   try {
     const topicsSummary = Object.entries(topicSentiments)
@@ -31,66 +31,79 @@ Please revise and enhance the job description to better highlight these aspects 
 }
 
 async function optimizeJobPost(job) {
-  const surveys = await Survey.find({ employer: job.createdBy }).lean();
-  if (!surveys.length) return job;
+  try {
+    // Defensive: ensure jobBenefits is an array
+    if (!Array.isArray(job.jobBenefits)) job.jobBenefits = [];
 
-  const questions = surveys[0]?.questions || [];
+    const surveys = await Survey.find({ employer: job.createdBy }).lean();
+    if (!surveys.length) return job;
 
-  const topicKeywords = ['growth', 'mentorship', 'work-life balance', 'culture', 'salary'];
-  const topicIndexes = {};
-  for (const topic of topicKeywords) {
-    const index = questions.findIndex(q => q.label.toLowerCase().includes(topic));
-    if (index !== -1) topicIndexes[topic] = index;
-  }
+    const questions = surveys[0]?.questions || [];
 
-  const topicSentiments = {};
-  let lowBenefitFlag = false;
-
-  for (const [topic, idx] of Object.entries(topicIndexes)) {
-    const ratings = surveys.map(s => {
-      if (!s.analytics || !s.analytics.averageRatings) return null;
-      const ratingObj = s.analytics.averageRatings.find(r => r.questionIndex === idx);
-      return ratingObj?.avg || null;
-    }).filter(r => r !== null);
-
-    const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length) : null;
-
-    const textAnswers = surveys.flatMap(s => {
-      if (!s.analytics || !s.analytics.textAnswers) return [];
-      const answersObj = s.analytics.textAnswers.find(t => t.questionIndex === idx);
-      return answersObj?.answers || [];
-    });
-
-    const negativeWords = ['poor', 'low', 'bad', 'none', 'lack', 'insufficient'];
-    const negativeCount = textAnswers.reduce((count, answer) => {
-      const lower = answer.toLowerCase();
-      return count + (negativeWords.some(w => lower.includes(w)) ? 1 : 0);
-    }, 0);
-
-    if (avgRating !== null && avgRating < 3) {
-      topicSentiments[topic] = 'negative';
-      lowBenefitFlag = true;
-    } else if (negativeCount > (textAnswers.length / 2)) {
-      topicSentiments[topic] = 'negative';
-      lowBenefitFlag = true;
-    } else {
-      topicSentiments[topic] = 'positive or neutral';
+    const topicKeywords = ['growth', 'mentorship', 'work-life balance', 'culture', 'salary'];
+    const topicIndexes = {};
+    for (const topic of topicKeywords) {
+      const index = questions.findIndex(q => q.label.toLowerCase().includes(topic));
+      if (index !== -1) topicIndexes[topic] = index;
     }
-  }
 
-  if (lowBenefitFlag) {
-    if (!job.jobBenefits.includes('mentorship program')) {
-      job.jobBenefits.push('mentorship program');
+    const topicSentiments = {};
+    let lowBenefitFlag = false;
+
+    for (const [topic, idx] of Object.entries(topicIndexes)) {
+      // Extract average ratings for this topic across surveys
+      const ratings = surveys.map(s => {
+        if (!s.analytics || !Array.isArray(s.analytics.averageRatings)) return null;
+        const ratingObj = s.analytics.averageRatings.find(r => r.questionIndex === idx);
+        return ratingObj?.avg ?? null;
+      }).filter(r => r !== null);
+
+      const avgRating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+
+      // Extract text answers for this topic across surveys
+      const textAnswers = surveys.flatMap(s => {
+        if (!s.analytics || !Array.isArray(s.analytics.textAnswers)) return [];
+        const answersObj = s.analytics.textAnswers.find(t => t.questionIndex === idx);
+        return Array.isArray(answersObj?.answers) ? answersObj.answers : [];
+      });
+
+      const negativeWords = ['poor', 'low', 'bad', 'none', 'lack', 'insufficient'];
+      const negativeCount = textAnswers.reduce((count, answer) => {
+        const lower = answer.toLowerCase();
+        return count + (negativeWords.some(w => lower.includes(w)) ? 1 : 0);
+      }, 0);
+
+      if (avgRating !== null && avgRating < 3) {
+        topicSentiments[topic] = 'negative';
+        lowBenefitFlag = true;
+      } else if (textAnswers.length > 0 && negativeCount > (textAnswers.length / 2)) {
+        topicSentiments[topic] = 'negative';
+        lowBenefitFlag = true;
+      } else {
+        topicSentiments[topic] = 'positive or neutral';
+      }
     }
-    if (!job.jobBenefits.includes('work-life balance initiatives')) {
-      job.jobBenefits.push('work-life balance initiatives');
+
+    // Add benefits if needed
+    if (lowBenefitFlag) {
+      if (!job.jobBenefits.includes('mentorship program')) {
+        job.jobBenefits.push('mentorship program');
+      }
+      if (!job.jobBenefits.includes('work-life balance initiatives')) {
+        job.jobBenefits.push('work-life balance initiatives');
+      }
     }
+
+    // Update optimized description
+    job.optimizedDescription = await improveJobDescription(job, topicSentiments);
+
+    await job.save();
+    return job;
+  } catch (err) {
+    console.error('Error in optimizeJobPost:', err);
+    // Return job even if optimization fails to avoid blocking flow
+    return job;
   }
-
-  job.optimizedDescription = await improveJobDescription(job, topicSentiments);
-
-  await job.save();
-  return job;
 }
 
 exports.previewOptimizedDescription = async (req, res) => {
@@ -106,13 +119,14 @@ exports.previewOptimizedDescription = async (req, res) => {
 
     if (!surveys.length) {
       const simplePrompt = `
-      Here's a job description for the role of "${title}" in the "${industry}" industry:
+Here's a job description for the role of "${title}" in the "${industry}" industry:
 
-      ---
-      ${description}
-      ---
+---
+${description}
+---
 
-      Please improve and enhance this description to be clear, exciting, and appealing.`;
+Please improve and enhance this description to be clear, exciting, and appealing.`;
+
       const enhancedDesc = await enhanceDescription(simplePrompt);
       return res.status(200).json({ optimizedDescription: enhancedDesc });
     }
@@ -128,17 +142,17 @@ exports.previewOptimizedDescription = async (req, res) => {
     const topicSentiments = {};
     for (const [topic, idx] of Object.entries(topicIndexes)) {
       const ratings = surveys.map(s => {
-        if (!s.analytics || !s.analytics.averageRatings) return null;
+        if (!s.analytics || !Array.isArray(s.analytics.averageRatings)) return null;
         const ratingObj = s.analytics.averageRatings.find(r => r.questionIndex === idx);
-        return ratingObj?.avg || null;
+        return ratingObj?.avg ?? null;
       }).filter(r => r !== null);
 
-      const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length) : null;
+      const avgRating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
 
       const textAnswers = surveys.flatMap(s => {
-        if (!s.analytics || !s.analytics.textAnswers) return [];
+        if (!s.analytics || !Array.isArray(s.analytics.textAnswers)) return [];
         const answersObj = s.analytics.textAnswers.find(t => t.questionIndex === idx);
-        return answersObj?.answers || [];
+        return Array.isArray(answersObj?.answers) ? answersObj.answers : [];
       });
 
       const negativeWords = ['poor', 'low', 'bad', 'none', 'lack', 'insufficient'];
@@ -149,7 +163,7 @@ exports.previewOptimizedDescription = async (req, res) => {
 
       if (avgRating !== null && avgRating < 3) {
         topicSentiments[topic] = 'negative';
-      } else if (negativeCount > (textAnswers.length / 2)) {
+      } else if (textAnswers.length > 0 && negativeCount > (textAnswers.length / 2)) {
         topicSentiments[topic] = 'negative';
       } else {
         topicSentiments[topic] = 'positive or neutral';
@@ -168,10 +182,15 @@ exports.previewOptimizedDescription = async (req, res) => {
 
 exports.createJob = async (req, res) => {
   try {
+    console.log('Request user:', req.user);
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'User not authenticated or user ID missing' });
+    }
+
     const {
       title,
       description,
-      company,
+      company: companyInput,
       location,
       salary,
       employmentType,
@@ -186,10 +205,28 @@ exports.createJob = async (req, res) => {
       oneClickApply = false,
     } = req.body;
 
+    console.log('Request body:', req.body);
+
+    // Defensive: ensure jobBenefits is an array
+    const benefitsArray = Array.isArray(jobBenefits) ? jobBenefits : [];
+
+    let companyId = companyInput;
+
+    if (!mongoose.Types.ObjectId.isValid(companyId)) {
+      console.log(`Company ID is not a valid ObjectId: ${companyId}`);
+      const companyDoc = await Company.findOne({ name: new RegExp(`^${companyId}$`, 'i') });
+      if (!companyDoc) {
+        console.log('Company not found in DB for name:', companyId);
+        return res.status(400).json({ message: 'Company not found' });
+      }
+      companyId = companyDoc._id;
+      console.log('Resolved companyId from company name:', companyId);
+    }
+
     const job = await Job.create({
       title,
       description,
-      company,
+      company: companyId,
       location,
       salary,
       employmentType,
@@ -198,16 +235,27 @@ exports.createJob = async (req, res) => {
       applicationDeadline,
       isRemote,
       industry,
-      jobBenefits,
+      jobBenefits: benefitsArray,
       numberOfOpenings,
       status,
       oneClickApply,
       createdBy: req.user._id,
     });
 
-    await optimizeJobPost(job);
+    if (!job) {
+      console.error('Job creation returned null or undefined');
+      return res.status(500).json({ message: 'Failed to create job' });
+    }
 
-    res.status(201).json(job);
+    console.log('Job created successfully:', job);
+
+    const jobPopulated = await Job.findById(job._id).populate('company', 'name');
+
+    console.log('Job after population:', jobPopulated);
+
+    await optimizeJobPost(jobPopulated);
+
+    res.status(201).json(jobPopulated);
   } catch (error) {
     console.error('error creating job', error);
     res.status(500).json({ message: 'Failed to create job', error: error.message });
@@ -215,20 +263,30 @@ exports.createJob = async (req, res) => {
 };
 
 exports.getJobs = async (req, res) => {
-  try {
-    const jobs = await Job.find().sort({ createdAt: -1 });
+ try {
+    const jobs = await Job.find()
+      .populate('company', 'name')  // populate company with only its name
+      .sort({ createdAt: -1 });
+
     res.status(200).json(jobs);
   } catch (error) {
+    console.error('Error fetching jobs:', error);
     res.status(500).json({ message: 'Failed to fetch jobs', error: error.message });
   }
 };
 
 exports.getJobById = async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+  return res.status(400).json({ message: 'Invalid job id' });
+}
+
+const job = await Job.findById(req.params.id).populate('company', 'name');
+
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
     const responseJob = job.toObject();
+
     if (job.optimizedDescription) {
       responseJob.originalDescription = job.description;
       responseJob.description = job.optimizedDescription;
@@ -236,6 +294,7 @@ exports.getJobById = async (req, res) => {
 
     res.status(200).json(responseJob);
   } catch (error) {
+    console.error('Error fetching job by id:', error);
     res.status(500).json({ message: 'Failed to fetch job', error: error.message });
   }
 };
@@ -245,12 +304,17 @@ exports.getMyJobs = async (req, res) => {
     const jobs = await Job.find({ createdBy: req.user._id }).sort({ createdAt: -1 });
     res.status(200).json(jobs);
   } catch (error) {
+    console.error('Error fetching user jobs:', error);
     res.status(500).json({ message: 'Failed to fetch your jobs', error: error.message });
   }
 };
 
 exports.updateJob = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid job id' });
+    }
+
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
@@ -260,18 +324,25 @@ exports.updateJob = async (req, res) => {
 
     Object.assign(job, req.body);
 
-    await job.save();
+   await job.save();
 
-    await optimizeJobPost(job);
+await optimizeJobPost(job);
 
-    res.status(200).json(job);
+const updatedJob = await Job.findById(job._id).populate('company', 'name');
+
+res.status(200).json(updatedJob);
   } catch (error) {
+    console.error('Failed to update job:', error);
     res.status(500).json({ message: 'Failed to update job', error: error.message });
   }
 };
 
 exports.oneClickApply = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid job id' });
+    }
+
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
@@ -279,6 +350,7 @@ exports.oneClickApply = async (req, res) => {
       return res.status(400).json({ message: 'One-click apply not enabled for this job.' });
     }
 
+    // Here you can add logic to actually create an application record, notify, etc.
     res.status(200).json({ message: 'Application submitted via One-Click Apply!' });
   } catch (err) {
     console.error('One-Click Apply error:', err);
@@ -288,6 +360,10 @@ exports.oneClickApply = async (req, res) => {
 
 exports.deleteJob = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid job id' });
+    }
+
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
@@ -298,12 +374,17 @@ exports.deleteJob = async (req, res) => {
     await job.deleteOne();
     res.status(200).json({ message: 'Job removed' });
   } catch (error) {
+    console.error('Failed to delete job:', error);
     res.status(500).json({ message: 'Failed to delete job', error: error.message });
   }
 };
 
 exports.optimizeJobManually = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid job id' });
+    }
+
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: 'Job not found' });
 

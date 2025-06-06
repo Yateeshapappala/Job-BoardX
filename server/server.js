@@ -56,5 +56,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const surveyRoutes = require('../server/routes/SurveyRoutes');
 app.use('/api/surveys', surveyRoutes);
 
+const interviewersRouter = require('./routes/interviewRoutes');
+app.use('/api', interviewersRouter);
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

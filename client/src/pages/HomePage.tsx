@@ -10,7 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const user = useAuth();
+  const user = useAuth(); // undefined = loading, null = guest, object = logged in
 
   // Memoized greeting based on current hour
   const greeting = useMemo(() => {
@@ -41,8 +41,8 @@ const HomePage = () => {
     }), []
   );
 
-  // Optional: Show loading while user info is fetched
-  if (user === null) {
+  // Show loading spinner while auth state is still being resolved
+  if (user === undefined) {
     return (
       <Box
         sx={{
@@ -57,8 +57,10 @@ const HomePage = () => {
     );
   }
 
-  // Define actions based on role
-  const actions = user.role === 'Employer' ? [
+  const isGuest = !user;
+
+  // Define actions only for logged-in users
+  const actions = !isGuest && user.role === 'Employer' ? [
     {
       icon: <WorkIcon sx={{ fontSize: 40, color: '#7A5FFF' }} />,
       title: 'Post a Job',
@@ -71,7 +73,7 @@ const HomePage = () => {
       description: 'Manage and edit your job posts.',
       path: '/my-jobs',
     },
-  ] : [
+  ] : !isGuest ? [
     {
       icon: <WorkIcon sx={{ fontSize: 40, color: '#7A5FFF' }} />,
       title: 'Browse Jobs',
@@ -84,19 +86,20 @@ const HomePage = () => {
       description: 'Track your job applications.',
       path: '/my-applications',
     },
-  ];
+  ] : [];
 
   return (
     <Box sx={{ background: 'linear-gradient(135deg, #dfe9f3 0%, #ffffff 100%)', minHeight: '100vh' }}>
       <HeroSection
-        userName={user.name}
+        userName={user?.name || 'Guest'}
         greeting={greeting}
-        companyName={user.companyName}
+        companyName={user?.companyName}
         date={today}
         onCTA={() => navigate('/jobs')}
       />
 
-      {user.name && (
+      {/* Authenticated user-specific action cards */}
+      {!isGuest && (
         <Container sx={{ my: 6 }}>
           <Box display="flex" justifyContent="center" flexWrap="wrap" gap={4}>
             {actions.map(({ icon, title, description, path }) => (
@@ -112,12 +115,14 @@ const HomePage = () => {
         </Container>
       )}
 
+      {/* Motivational quote */}
       <Box sx={{ textAlign: 'center', mt: 4, px: 2 }}>
         <Typography variant="h6" fontStyle="italic" color="text.secondary">
           “{randomQuote}”
         </Typography>
       </Box>
 
+      {/* Latest jobs visible to everyone */}
       <Box sx={{ mt: 6, px: 2 }}>
         <LatestJobs />
       </Box>

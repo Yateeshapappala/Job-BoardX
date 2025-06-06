@@ -20,6 +20,10 @@ import SurveyResponses from '../pages/SurveyRespones';
 import EmployerDashboard from '../pages/Dashboardpage';
 import CreateSurvey from '../pages/CreateSurvey';
 import TakeSurveyPage from '../pages/TakeSurveyPage';
+import AvailabilityForm from '../components/AvailabilityForm';
+import InterviewSchedulerPage from '../pages/InterviewSchedulerpage';
+import SubmitAvailabilityPage from '../pages/SubmitAvailabilityPage';
+import MinimumDaysEstimator from '../components/TimeCalculator';
 
 const AppRoutes = () => {
   return (
@@ -44,7 +48,13 @@ const AppRoutes = () => {
       <Route path="/surveys/:surveyId/responses" element={<SurveyResponses />} />
       <Route path="/employer/dashboard" element={<EmployerDashboard />} />
       <Route path="/surveys/respond/:id" element={<TakeSurveyPage/>} />
-            <Route path="/post-job" element={<PostJobPage />} />
+       <Route path="/scheduler/availability" element={<AvailabilityForm role="candidate" />} />
+        <Route path="/scheduler/interviewer-availability" element={<AvailabilityForm role="interviewer" />} />
+      <Route path="/jobs/:id/minimum-days" element={<MinimumDaysEstimator />} />
+
+        <Route path="/employer/interview-scheduler" element={<InterviewSchedulerPage />} />
+         <Route path="/submit-availability/:id" element={<SubmitAvailabilityPage />} />
+           <Route path="/post-job" element={<PostJobPage />} />
             <Route path="/my-jobs" element={<MyJobsPage />} />
             <Route path="/profile/me" element={<ProfilePage />} />
             <Route path="/profile" element={<EditProfilePage />}/> 

@@ -7,7 +7,9 @@ import { Link } from 'react-router-dom';
 interface JobCardProps {
   job: {
     _id: string;
-    company: string;
+    company: {
+      name: string;
+    };
     location: string;
     title: string;
     numberOfOpenings?: number;
@@ -19,6 +21,7 @@ interface JobCardProps {
   saved: boolean;
   onToggleSave: (jobId: string) => void;
 }
+
 
 const JobCard: React.FC<JobCardProps> = ({ job, saved, onToggleSave }) => {
   return (
@@ -56,10 +59,10 @@ const JobCard: React.FC<JobCardProps> = ({ job, saved, onToggleSave }) => {
       {/* Company Info */}
       <Stack direction="row" alignItems="center" spacing={1} mb={1}>
         <Avatar sx={{ bgcolor: '#7A5FFF', fontSize: 14 }}>
-          {job.company?.charAt(0)}
+          {job.company?.name?.charAt(0)}
         </Avatar>
         <Typography variant="body2" color="text.secondary">
-          {job.company} · {job.location}
+          {job.company?.name} · {job.location}
         </Typography>
       </Stack>
 

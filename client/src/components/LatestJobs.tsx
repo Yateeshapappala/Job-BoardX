@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '../services/axiosInstance';
 import {
   Typography, Card, CardContent, CardActions, Button,
   Box, Chip, Avatar, Stack
@@ -12,7 +12,7 @@ const LatestJobs = () => {
   useEffect(() => {
     const fetchLatest = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/jobs?limit=4');
+        const res = await axios.get('/api/jobs?limit=4');
         setLatestJobs(res.data);
       } catch (err) {
         console.error('Failed to fetch latest jobs', err);
@@ -46,9 +46,9 @@ const LatestJobs = () => {
           >
             <CardContent>
               <Stack direction="row" alignItems="center" spacing={1} mb={1.5}>
-                <Avatar sx={{ bgcolor: '#7A5FFF' }}>{job.company?.charAt(0)}</Avatar>
+                <Avatar sx={{ bgcolor: '#7A5FFF' }}>{job.company?.name?.charAt(0)}</Avatar>
                 <Typography variant="subtitle2" color="text.secondary">
-                  {job.company}
+                  {job.company?.name}
                 </Typography>
               </Stack>
 

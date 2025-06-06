@@ -17,7 +17,27 @@ const ApplicationSchema = new mongoose.Schema({
     type: String,
     enum: ['Applied', 'Reviewed', 'Accepted', 'Rejected'],
     default: 'Applied'
-  }
+  },
+  interviewStatus: {
+  type: String,
+  enum: ['NotInvited', 'Invited','SlotsSubmitted', 'Scheduled', 'NotScheduled'],
+  default: 'NotInvited'
+},
+
+ availability: {
+  slots: { type: [Date], default: [] },
+  submittedAt: { type: Date }
+},
+scheduledInterview: {
+  slot: { type: String, default: null },
+  interviewers: [{
+    _id: false,
+    name: String,
+    email: String,
+    role: String
+  }]
+}
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Application', ApplicationSchema);

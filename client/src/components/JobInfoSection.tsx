@@ -36,7 +36,7 @@ const JobInfoSection: React.FC<JobDetailsProps> = ({
       )}
 
       <Stack direction="row" spacing={2} flexWrap="wrap" alignItems="center" mt={2}>
-        <Chip label={job.company} color="primary" />
+        <Chip label={job.company?.name || job.company} color="primary" />
         {job.isRemote ? (
           <Chip label="Remote" color="success" />
         ) : (

@@ -23,7 +23,7 @@ const RegisterPage = () => {
     name: '',
     email: '',
     password: '',
-    role: 'JobSeeker',
+    role: 'Jobseeker',
     companyName: '', // Added this field here
   };
 
