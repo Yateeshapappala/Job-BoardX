@@ -46,15 +46,14 @@
 
 ### 📦 Set Up Backend
 
-```bash
+```
 cd server
 npm install
 npm run dev
+```
 
 ### 📦 Set Up Frontend
-
-```bash
-
+```
 cd client
 npm install
 npm start
