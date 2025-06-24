@@ -12,11 +12,11 @@ const {
 
 const router = express.Router();
 
+router.post('/openai/preview-job-description',protect,previewOptimizedDescription)
 router.post('/', protect, createJob);            // Create job (Employer only)
 router.get('/my-jobs', protect, getMyJobs);      // Get own jobs
 router.get('/', getJobs);                        // Get all jobs (Public)
 router.get('/:id', getJobById);                  // Get single job (Public)
 router.put('/:id', protect, updateJob);          // Update job (Employer only)
 router.delete('/:id', protect, deleteJob);       // Delete job (Employer only)
-router.post('/openai/preview-job-description',protect,previewOptimizedDescription)
 module.exports = router;
