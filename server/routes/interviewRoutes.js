@@ -53,7 +53,7 @@ router.delete('/interviewers/:email', async (req, res) => {
     const company = await Company.findById(companyId);
     if (!company) return res.status(404).json({ message: 'Company not found' });
 
-    const emailParam = req.params.email.toLowerCase();
+    const emailParam = decodeURIComponent(req.params.email.toLowerCase());
     company.interviewers = company.interviewers.filter(i => i.email.toLowerCase() !== emailParam);
     await company.save();
 

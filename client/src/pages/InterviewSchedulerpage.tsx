@@ -70,7 +70,7 @@ const Interviewers: React.FC = () => {
 
   const handleDelete = async (emailToDelete: string) => {
     try {
-      await axios.delete(`/api/interviewers/${emailToDelete}`);
+      await axios.delete(`/api/interviewers/${encodeURIComponent(emailToDelete)}`);
       fetchInterviewers();
     } catch (error) {
       console.error('Failed to delete interviewer', error);
