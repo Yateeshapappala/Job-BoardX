@@ -42,7 +42,7 @@ exports.register = async (req, res) => {
         return sendErrorResponse(res, 400, 'Company name is required for employers');
       }
 
-      const normalizedCompanyName = companyName.trim();
+      const normalizedCompanyName = companyName.toLowerCase();
 
       company = await Company.findOne({ name: normalizedCompanyName });
       if (!company) {
@@ -63,6 +63,7 @@ exports.register = async (req, res) => {
     try {
       await Profile.create({ user: user._id });
     } catch (profileErr) {
+      return sendErrorResponse(rex,500,'Error creating profile');
       console.error('❌ Error creating profile:', profileErr);
     }
 

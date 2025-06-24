@@ -8,12 +8,9 @@ const fs = require('fs');
 dotenv.config();
 
 const app = express();
-
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Test Route
 app.get('/', (req, res) => {
   res.send('JobBoardX API is running...');
 });
@@ -45,19 +42,20 @@ app.use('/api/applications', applicationRoutes);
 const jobRoutes = require('./routes/jobRoutes');
 app.use('/api/jobs', jobRoutes);
 
-app.use('/api/applications', require('./routes/applicationRoutes'));
-
 const uploadRoutes = require('./routes/uploadRoutes');
-console.log('Upload routes loaded');
 app.use('/api/upload', uploadRoutes);
-
-app.use('/uploads', express.static('uploads'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-const surveyRoutes = require('../server/routes/SurveyRoutes');
+
+const surveyRoutes = require('./routes/SurveyRoutes');
 app.use('/api/surveys', surveyRoutes);
 
 const interviewersRouter = require('./routes/interviewRoutes');
 app.use('/api', interviewersRouter);
 
 const PORT = process.env.PORT || 5000;
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Something went wrong!' });
+});
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

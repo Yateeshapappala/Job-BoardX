@@ -102,31 +102,7 @@ exports.updateApplicationStatus = async (req, res) => {
       return sendError(res, 401, 'Not authorized');
     }
 
-    // Prevent accidentally overriding invitation
-    //const prevStatus = application.status || 'Applied';
-
     application.status = status;
-
-    // When moving to Accepted, if previously not invited, send invite
-    // if (status === 'Accepted' && prevStatus !== 'Invited' && prevStatus !== 'Scheduled') {
-    //   application.interviewStatus = 'Invited';
-    //   await application.save();
-
-    //   const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-    //   const availabilityLink = `${baseUrl}/submit-availability/${application._id}`;
-
-    //   await sendInterviewInvitationEmail(
-    //     application.applicant.email,
-    //     availabilityLink,
-    //     application.applicant.name,
-    //     job.title
-    //   );
-
-    //   return res.status(200).json({ 
-    //     message: 'Application accepted and interview invitation sent.', 
-    //     application 
-    //   });
-    // }
 
     await application.save();
 
@@ -193,7 +169,6 @@ exports.sendInterviewInvitation = async (req, res) => {
 const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
       const availabilityLink = `${baseUrl}/submit-availability/${application._id}`;
 
-    // Send invitation email
     await sendInterviewInvitationEmail(
      application.applicant.email,   // toEmail
   availabilityLink,             // availabilityLink (URL)
@@ -305,11 +280,9 @@ if (!mongoose.Types.ObjectId.isValid(jobId)) {
 
 
   try {
-    // Fetch job with company populated, and createdBy populated for auth check
-    const job = await Job.findById(jobId).populate('company').populate('createdBy');
+   const job = await Job.findById(jobId).populate('company').populate('createdBy');
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
-    // Authorization: only job creator can schedule interviews
     if (!job.createdBy || !job.createdBy._id) {
       console.error('Job.createdBy is null:', job);
       return res.status(500).json({ message: 'Job has no creator info (createdBy is null)' });
@@ -318,7 +291,6 @@ if (!mongoose.Types.ObjectId.isValid(jobId)) {
       return res.status(401).json({ message: 'Not authorized' });
     }
 
-    // Validate company and interviewers availability
     const company = job.company;
     if (!company) {
       return res.status(500).json({ message: 'Job company not found or not populated' });
@@ -329,7 +301,6 @@ if (!mongoose.Types.ObjectId.isValid(jobId)) {
   return res.status(400).json({ message: `Company has only ${interviewers.length} interviewers but ${numInterviewers} required` });
 }
 
-    // Fetch accepted applications with valid availability slots
     const applications = await Application.find({
       job: jobId,
       status: 'Accepted',
@@ -346,7 +317,6 @@ if (!mongoose.Types.ObjectId.isValid(jobId)) {
     const interviewerLoad = new Array(numInterviewers).fill(0);
     const assignments = {};
 
-    // Assign slots fairly to interviewers with least load
     for (const app of applications) {
       const sortedSlots = [...app.availability.slots].sort();
       let assigned = false;
