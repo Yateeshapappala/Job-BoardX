@@ -7,6 +7,7 @@ import HeroSection from '../components/HeroSection';
 import ActionCard from '../components/ActionCard';
 import LatestJobs from '../components/LatestJobs';
 import { useAuth } from '../hooks/useAuth';
+import { motion } from 'framer-motion';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -91,7 +92,7 @@ const HomePage = () => {
   return (
     <Box sx={{ background: 'linear-gradient(135deg, #dfe9f3 0%, #ffffff 100%)', minHeight: '100vh' }}>
       <HeroSection
-        userName={user?.name || 'Guest'}
+        userName={user?.name || ''}
         greeting={greeting}
         companyName={user?.companyName}
         date={today}
@@ -117,9 +118,15 @@ const HomePage = () => {
 
       {/* Motivational quote */}
       <Box sx={{ textAlign: 'center', mt: 4, px: 2 }}>
-        <Typography variant="h6" fontStyle="italic" color="text.secondary">
-          “{randomQuote}”
-        </Typography>
+        <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        >
+          <Typography variant="h6" fontStyle="italic" color="text.secondary">
+            “{randomQuote}”
+          </Typography>
+        </motion.div>
       </Box>
 
       {/* Latest jobs visible to everyone */}
