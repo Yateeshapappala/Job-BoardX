@@ -7,8 +7,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert, { AlertProps } from '@mui/material/Alert';
-import InputAdornment from '@mui/material/InputAdornment'; // Add this at the top
-
+import InputAdornment from '@mui/material/InputAdornment';
 
 const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;

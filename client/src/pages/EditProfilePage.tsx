@@ -1,11 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
-import {Box, Typography, Paper, CircularProgress, Divider,Button,Snackbar} from '@mui/material';
+import { Box, Typography, Paper, CircularProgress, Divider, Button, Snackbar } from '@mui/material';
 import { Formik, Form, FieldArray } from 'formik';
 import * as Yup from 'yup';
-import axios from "../services/axiosInstance"
+import axios from '../services/axiosInstance';
 import { useNavigate } from 'react-router-dom';
-import { Profile} from '../services/Profile';
+import { Profile } from '../services/Profile';
 import SkillsFieldArray from '../components/EditSkills';
 import ProfileFormFields from '../components/EditProfileform';
 import ExperienceEducationFieldArray from '../components/EditEduExp';
@@ -74,11 +73,12 @@ const EditProfilePage = () => {
         const res = await axios.get('/api/profile/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
+
         const data = res.data;
-  
+
         const formatDate = (dateStr: string) =>
           dateStr ? new Date(dateStr).toISOString().split('T')[0] : '';
-  
+
         setInitialValues({
           headline: data.headline || '',
           bio: data.bio || '',
@@ -111,10 +111,31 @@ const EditProfilePage = () => {
     };
     fetchProfile();
   }, []);
-  
+
   const handleSnackbarClose = () => {
     setOpenSnackbar(false);
   };
+
+  // ✅ Helper to parse string dates to real Date objects before sending to backend
+  const parseProfileDates = (values: Profile): Profile => {
+  const formatDate = (str: string | null | undefined) =>
+    str ? new Date(str).toISOString() : '';
+
+  return {
+    ...values,
+    experience: values.experience.map(exp => ({
+      ...exp,
+      from: formatDate(exp.from),
+      to: exp.current || !exp.to ? '' : formatDate(exp.to),
+    })),
+    education: values.education.map(edu => ({
+      ...edu,
+      from: formatDate(edu.from),
+      to: edu.current || !edu.to ? '' : formatDate(edu.to),
+    })),
+  };
+};
+
 
   if (loading) {
     return (
@@ -137,7 +158,9 @@ const EditProfilePage = () => {
           onSubmit={async (values, { setSubmitting }) => {
             try {
               const token = localStorage.getItem('token');
-              await axios.put('/api/profile', values, {
+              const parsedValues = parseProfileDates(values); // ✅
+
+              await axios.put('/api/profile', parsedValues, {
                 headers: {
                   Authorization: `Bearer ${token}`,
                   'Content-Type': 'application/json',
@@ -156,43 +179,45 @@ const EditProfilePage = () => {
           }}
         >
           {({ values, handleChange, errors, touched, isSubmitting, setFieldValue }) => (
-            
-             <Form noValidate>
-      <ProfileFormFields
-        values={values}
-        handleChange={handleChange}
-        errors={errors}
-        touched={touched}
-      />
-
-      <FieldArray name="skills">
-        {(arrayHelpers) => (
-          <SkillsFieldArray
-            skills={values.skills}
-            newSkill={newSkill}
-            setNewSkill={setNewSkill}
-            arrayHelpers={arrayHelpers}
-          />
-        )}
-      </FieldArray>
-
-      <FieldArray name="experience">
-        {(experienceHelpers) => (
-          <FieldArray name="education">
-            {(educationHelpers) => (
-              <ExperienceEducationFieldArray
-                values={{ experience: values.experience, education: values.education }}
+            <Form noValidate>
+              <ProfileFormFields
+                values={values}
+                handleChange={handleChange}
                 errors={errors}
                 touched={touched}
-                handleChange={handleChange}
-                setFieldValue={setFieldValue}
-                experienceHelpers={experienceHelpers}
-                educationHelpers={educationHelpers}
               />
-            )}
-          </FieldArray>
-        )}
-      </FieldArray>  
+
+              <FieldArray name="skills">
+                {(arrayHelpers) => (
+                  <SkillsFieldArray
+                    skills={values.skills}
+                    newSkill={newSkill}
+                    setNewSkill={setNewSkill}
+                    arrayHelpers={arrayHelpers}
+                  />
+                )}
+              </FieldArray>
+
+              <FieldArray name="experience">
+                {(experienceHelpers) => (
+                  <FieldArray name="education">
+                    {(educationHelpers) => (
+                      <ExperienceEducationFieldArray
+                        values={{
+                          experience: values.experience,
+                          education: values.education
+                        }}
+                        errors={errors}
+                        touched={touched}
+                        handleChange={handleChange}
+                        setFieldValue={setFieldValue}
+                        experienceHelpers={experienceHelpers}
+                        educationHelpers={educationHelpers}
+                      />
+                    )}
+                  </FieldArray>
+                )}
+              </FieldArray>
 
               <Box mt={4}>
                 <Button type="submit" variant="contained" color="primary" disabled={isSubmitting}>
@@ -202,7 +227,13 @@ const EditProfilePage = () => {
             </Form>
           )}
         </Formik>
-        <Snackbar open={openSnackbar} autoHideDuration={6000} onClose={handleSnackbarClose} message={snackbarMessage} />
+
+        <Snackbar
+          open={openSnackbar}
+          autoHideDuration={6000}
+          onClose={handleSnackbarClose}
+          message={snackbarMessage}
+        />
       </Paper>
     </Box>
   );
