@@ -20,10 +20,10 @@ router.post('/:id/respond', submitSurveyResponse); // public (optional)
 
 // Employer dashboarda
 router.get('/employer/me', protect, employerOnly, getEmployerSurveys);
-router.get('/:id/responses', protect, employerOnly, getSurveyResponses);
-router.delete('/:id', protect, employerOnly, deleteSurvey); 
+router.get('/:id/responses', protect, employerOnly, getSurveyResponses); 
 router.get('/:id/has-submitted', checkIfSubmitted);
 router.get('/:id', getSurveyById);
+router.delete('/:id', protect, employerOnly, deleteSurvey);
 module.exports = router;
 
 
