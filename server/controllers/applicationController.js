@@ -1,7 +1,7 @@
 const Application = require('../models/Application');
 const Job = require('../models/job');
 const mongoose = require('mongoose');
-const sendInterviewInvitationEmail = require('../utils/sendInterviewInvie'); // your helper
+const sendInterviewInvitationEmail = require('../utils/sendInterviewInvie');
 const sendFinalScheduleEmail = require('../utils/sendFinalScheduleEmail');
 
 const sendError = (res, status, message, error = null) => {
@@ -33,7 +33,7 @@ exports.applyJob = async (req, res) => {
       resumeLink,
       coverLetter,
       status: 'Applied',
-      interviewStatus: 'NotInvited',   // explicitly set initial status
+      interviewStatus: 'NotInvited',
     });
 
     await newApplication.save();

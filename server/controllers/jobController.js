@@ -337,27 +337,6 @@ res.status(200).json(updatedJob);
   }
 };
 
-exports.oneClickApply = async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ message: 'Invalid job id' });
-    }
-
-    const job = await Job.findById(req.params.id);
-    if (!job) return res.status(404).json({ message: 'Job not found' });
-
-    if (!job.oneClickApply) {
-      return res.status(400).json({ message: 'One-click apply not enabled for this job.' });
-    }
-
-    // Here you can add logic to actually create an application record, notify, etc.
-    res.status(200).json({ message: 'Application submitted via One-Click Apply!' });
-  } catch (err) {
-    console.error('One-Click Apply error:', err);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
 exports.deleteJob = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {

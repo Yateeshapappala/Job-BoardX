@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const MODEL = 'openai/gpt-3.5-turbo'; // ✅ Use a known free model
+const MODEL = 'google/gemma-3n-e4b-it:free';
 
 async function enhanceDescription(originalDescription) {
   if (!OPENROUTER_API_KEY) {
