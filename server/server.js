@@ -8,7 +8,10 @@ const fs = require('fs');
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: 'https://jobboarddx.vercel.app',
+  credentials: true
+}));
 app.use(express.json());
 
 
