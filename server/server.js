@@ -8,12 +8,12 @@ const fs = require('fs');
 dotenv.config();
 
 const app = express();
+app.use(cors());
+app.use(express.json());
 app.use(cors({
-  origin: 'https://jobboarddx.vercel.app',
+  origin: 'http://localhost:3000',
   credentials: true
 }));
-app.use(express.json());
-
 
 app.get('/', (req, res) => {
   res.send('JobBoardX API is running...');
